@@ -1,7 +1,12 @@
 // src/store/authStore.js
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import api from '../api/axios'; // ✅ Use configured axios
+import axios from 'axios';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+// Configure axios to include cookies
+axios.defaults.withCredentials = true;
 
 const useAuthStore = create(
   persist(
@@ -11,10 +16,11 @@ const useAuthStore = create(
       isLoading: false,
       error: null,
 
+      // Register Admin
       register: async (name, email, password) => {
         set({ isLoading: true, error: null });
         try {
-          const { data } = await api.post('/admin/register', { // ✅ Use api
+          const { data } = await axios.post(`${API_URL}/admin/register`, {
             name,
             email,
             password,
@@ -32,10 +38,11 @@ const useAuthStore = create(
         }
       },
 
+      // Login Admin
       login: async (email, password) => {
         set({ isLoading: true, error: null });
         try {
-          const { data } = await api.post('/admin/login', { // ✅ Use api
+          const { data } = await axios.post(`${API_URL}/admin/login`, {
             email,
             password,
           });
@@ -52,9 +59,11 @@ const useAuthStore = create(
         }
       },
 
+      // Logout Admin
       logout: async () => {
         try {
-          await api.post('/admin/logout'); // ✅ Call logout endpoint
+          // Optional: call logout endpoint if you have one
+          // await axios.post(`${API_URL}/admin/logout`);
           set({
             admin: null,
             isAuthenticated: false,
@@ -62,15 +71,10 @@ const useAuthStore = create(
           });
         } catch (error) {
           console.error('Logout error:', error);
-          // Still clear state even if API call fails
-          set({
-            admin: null,
-            isAuthenticated: false,
-            error: null,
-          });
         }
       },
 
+      // Clear error
       clearError: () => set({ error: null }),
     }),
     {
