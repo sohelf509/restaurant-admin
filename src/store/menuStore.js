@@ -1,12 +1,12 @@
 // src/store/menuStore.js
 import { create } from 'zustand';
-import axios from 'axios';
+import api from '../api/axios'; // ✅ Import the configured axios instance
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// Remove these lines:
+// import axios from 'axios';
+// const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// axios.defaults.withCredentials = true;
 
-axios.defaults.withCredentials = true;
-
-// Helper function to format price in INR
 export const formatPrice = (price) => {
   return `₹${parseFloat(price).toFixed(2)}`;
 };
@@ -18,11 +18,10 @@ const useMenuStore = create((set, get) => ({
   selectedCategory: 'All',
   searchTerm: '',
 
-  // Fetch all menu items
   fetchMenuItems: async () => {
     set({ isLoading: true, error: null });
     try {
-      const { data } = await axios.get(`${API_URL}/menu`);
+      const { data } = await api.get('/menu'); // ✅ Use api instead of axios
       set({ menuItems: data.data, isLoading: false });
       return { success: true };
     } catch (error) {
@@ -32,11 +31,10 @@ const useMenuStore = create((set, get) => ({
     }
   },
 
-  // Add new menu item
   addMenuItem: async (formData) => {
     set({ isLoading: true, error: null });
     try {
-      const { data } = await axios.post(`${API_URL}/menu`, formData, {
+      const { data } = await api.post('/menu', formData, { // ✅ Use api
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -53,20 +51,17 @@ const useMenuStore = create((set, get) => ({
     }
   },
 
-  // Update menu item
   updateMenuItem: async (id, formData) => {
     set({ isLoading: true, error: null });
     try {
       console.log('Store: Updating item with ID:', id);
-      // ✅ Changed from PUT to PATCH
-      const { data } = await axios.patch(`${API_URL}/menu/${id}`, formData, {
+      const { data } = await api.patch(`/menu/${id}`, formData, { // ✅ Use api
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
       set((state) => ({
         menuItems: state.menuItems.map((item) =>
-          // ✅ Handle both _id and id
           (item._id === id || item.id === id) ? data.data : item
         ),
         isLoading: false,
@@ -80,15 +75,13 @@ const useMenuStore = create((set, get) => ({
     }
   },
 
-  // Delete menu item
   deleteMenuItem: async (id) => {
     set({ isLoading: true, error: null });
     try {
       console.log('Store: Deleting item with ID:', id);
-      await axios.delete(`${API_URL}/menu/${id}`);
+      await api.delete(`/menu/${id}`); // ✅ Use api
       set((state) => ({
         menuItems: state.menuItems.filter((item) => 
-          // ✅ Handle both _id and id
           item._id !== id && item.id !== id
         ),
         isLoading: false,
@@ -102,13 +95,9 @@ const useMenuStore = create((set, get) => ({
     }
   },
 
-  // Set selected category
   setSelectedCategory: (category) => set({ selectedCategory: category }),
-
-  // Set search term
   setSearchTerm: (term) => set({ searchTerm: term }),
 
-  // Get filtered menu items
   getFilteredItems: () => {
     const { menuItems, selectedCategory, searchTerm } = get();
     return menuItems.filter((item) => {
@@ -118,7 +107,6 @@ const useMenuStore = create((set, get) => ({
     });
   },
 
-  // Clear error
   clearError: () => set({ error: null }),
 }));
 
