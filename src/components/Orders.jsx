@@ -5,12 +5,15 @@ import axios from 'axios';
 
 const Orders = () => {
   const [selectedStatus, setSelectedStatus] = useState('All');
+  const [selectedType, setSelectedType] = useState('All');
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [updating, setUpdating] = useState(null);
+  const [expandedOrder, setExpandedOrder] = useState(null);
 
-  const statuses = ['All', 'pending', 'preparing', 'served', 'completed'];
+  const statuses = ['All', 'pending', 'preparing', 'served', 'completed', 'out-for-delivery', 'delivered'];
+  const orderTypes = ['All', 'dine-in', 'home-delivery'];
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
   // Fetch orders from backend
@@ -37,6 +40,14 @@ const Orders = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Get valid statuses based on order type
+  const getValidStatuses = (orderType) => {
+    if (orderType === 'home-delivery') {
+      return ['pending', 'preparing', 'out-for-delivery', 'delivered'];
+    }
+    return ['pending', 'preparing', 'served', 'completed'];
   };
 
   // Update order status
@@ -93,9 +104,11 @@ const Orders = () => {
     }
   };
 
-  const filteredOrders = selectedStatus === 'All' 
-    ? orders 
-    : orders.filter(order => order.status === selectedStatus);
+  const filteredOrders = orders.filter(order => {
+    const statusMatch = selectedStatus === 'All' || order.status === selectedStatus;
+    const typeMatch = selectedType === 'All' || order.orderType === selectedType;
+    return statusMatch && typeMatch;
+  });
 
   const getStatusColor = (status) => {
     const colors = {
@@ -103,6 +116,8 @@ const Orders = () => {
       preparing: 'bg-blue-100 text-blue-800',
       served: 'bg-green-100 text-green-800',
       completed: 'bg-gray-100 text-gray-800',
+      'out-for-delivery': 'bg-purple-100 text-purple-800',
+      delivered: 'bg-emerald-100 text-emerald-800',
     };
     return colors[status] || 'bg-gray-100 text-gray-800';
   };
@@ -112,7 +127,9 @@ const Orders = () => {
       pending: '⏳',
       preparing: '👨‍🍳',
       served: '✅',
-      completed: '🚚',
+      completed: '🎉',
+      'out-for-delivery': '🚗',
+      delivered: '✅',
     };
     return icons[status] || '📦';
   };
@@ -123,8 +140,18 @@ const Orders = () => {
       preparing: 'Preparing',
       served: 'Served',
       completed: 'Completed',
+      'out-for-delivery': 'Out for Delivery',
+      delivered: 'Delivered',
     };
     return labels[status] || status;
+  };
+
+  const getOrderTypeIcon = (type) => {
+    return type === 'home-delivery' ? '🏠' : '🍽️';
+  };
+
+  const getOrderTypeLabel = (type) => {
+    return type === 'home-delivery' ? 'Delivery' : 'Dine In';
   };
 
   const formatTime = (date) => {
@@ -195,8 +222,29 @@ const Orders = () => {
           })}
         </div>
 
+        {/* Order Type Filter */}
+        <div className="bg-white rounded-lg shadow-md p-4 mb-4">
+          <label className="text-sm font-semibold text-gray-700 mb-2 block">Order Type:</label>
+          <div className="flex flex-wrap gap-2">
+            {orderTypes.map((type) => (
+              <button
+                key={type}
+                onClick={() => setSelectedType(type)}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  selectedType === type
+                    ? 'bg-indigo-500 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                {type === 'All' ? 'All Orders' : `${getOrderTypeIcon(type)} ${getOrderTypeLabel(type)}`}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Status Filter */}
         <div className="bg-white rounded-lg shadow-md p-4 mb-6">
+          <label className="text-sm font-semibold text-gray-700 mb-2 block">Status:</label>
           <div className="flex flex-wrap gap-2">
             {statuses.map((status) => (
               <button
@@ -221,10 +269,13 @@ const Orders = () => {
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Table
+                    Order Info
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Customer
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Type
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Items
@@ -245,50 +296,117 @@ const Orders = () => {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredOrders.map((order) => (
-                  <tr key={order._id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="font-medium text-gray-900">Table {order.tableNumber}</span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-gray-900">{order.customerName || 'Guest'}</span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-gray-600">{order.items?.length || 0} items</span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="font-semibold text-gray-900">
-                        ${order.totalAmount?.toFixed(2)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-3 py-1 inline-flex items-center space-x-1 text-xs leading-5 font-semibold rounded-full ${getStatusColor(order.status)}`}>
-                        <span>{getStatusIcon(order.status)}</span>
-                        <span>{getStatusLabel(order.status)}</span>
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {formatTime(order.createdAt)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <select
-                        value={order.status}
-                        onChange={(e) => updateOrderStatus(order._id, e.target.value)}
-                        disabled={updating === order._id}
-                        className="mr-2 border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="pending">Pending</option>
-                        <option value="preparing">Preparing</option>
-                        <option value="served">Served</option>
-                        <option value="completed">Completed</option>
-                      </select>
-                      <button 
-                        onClick={() => deleteOrder(order._id)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
+                  <>
+                    <tr 
+                      key={order._id} 
+                      className="hover:bg-gray-50 transition-colors cursor-pointer"
+                      onClick={() => setExpandedOrder(expandedOrder === order._id ? null : order._id)}
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {order.orderType === 'dine-in' ? (
+                          <span className="font-medium text-gray-900">Table {order.tableNumber}</span>
+                        ) : (
+                          <span className="font-medium text-indigo-600">🏠 Delivery</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="text-gray-900">{order.customerName || 'Guest'}</span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                          order.orderType === 'home-delivery' 
+                            ? 'bg-purple-100 text-purple-800' 
+                            : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {getOrderTypeIcon(order.orderType)} {getOrderTypeLabel(order.orderType)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="text-gray-600">{order.items?.length || 0} items</span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="font-semibold text-gray-900">
+                          ${order.totalAmount?.toFixed(2)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-3 py-1 inline-flex items-center space-x-1 text-xs leading-5 font-semibold rounded-full ${getStatusColor(order.status)}`}>
+                          <span>{getStatusIcon(order.status)}</span>
+                          <span>{getStatusLabel(order.status)}</span>
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {formatTime(order.createdAt)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <select
+                          value={order.status}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            updateOrderStatus(order._id, e.target.value);
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          disabled={updating === order._id}
+                          className="mr-2 border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          {getValidStatuses(order.orderType).map(status => (
+                            <option key={status} value={status}>
+                              {getStatusLabel(status)}
+                            </option>
+                          ))}
+                        </select>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteOrder(order._id);
+                          }}
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                    
+                    {/* Expanded Details Row */}
+                    {expandedOrder === order._id && (
+                      <tr>
+                        <td colSpan="8" className="px-6 py-4 bg-gray-50">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Order Details */}
+                            <div>
+                              <h4 className="font-semibold text-gray-900 mb-2">Order Details:</h4>
+                              <div className="space-y-1 text-sm">
+                                <p><strong>Order ID:</strong> {order._id}</p>
+                                {order.orderType === 'home-delivery' && (
+                                  <>
+                                    <p><strong>Phone:</strong> {order.phoneNumber || 'N/A'}</p>
+                                    <p><strong>Address:</strong> {order.deliveryAddress || 'N/A'}</p>
+                                    <p><strong>Payment:</strong> {order.paymentMethod?.replace('-', ' ') || 'N/A'}</p>
+                                    {order.deliveryFee > 0 && (
+                                      <p><strong>Delivery Fee:</strong> ${order.deliveryFee.toFixed(2)}</p>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                            
+                            {/* Order Items */}
+                            <div>
+                              <h4 className="font-semibold text-gray-900 mb-2">Items:</h4>
+                              <div className="space-y-2">
+                                {order.items?.map((item, index) => (
+                                  <div key={index} className="flex justify-between text-sm">
+                                    <span>{item.menuItem?.name || 'Item'} x{item.quantity}</span>
+                                    <span className="font-semibold">${(item.price * item.quantity).toFixed(2)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </>
                 ))}
               </tbody>
             </table>
